@@ -1,14 +1,22 @@
+import os
 import json
 import asyncio
 import discord
 from discord import app_commands
 from discord.ext import commands
 
-with open("config.json", "r", encoding="utf-8") as f:
-    config = json.load(f)
+TOKEN = os.getenv("DISCORD_TOKEN")
+CLIENT_ID = None
 
-TOKEN = config.get("TOKEN")
-CLIENT_ID = config.get("CLIENT_ID")
+if os.path.exists("config.json"):
+    with open("config.json", "r", encoding="utf-8") as f:
+        try:
+            config = json.load(f)
+            if not TOKEN:
+                TOKEN = config.get("TOKEN")
+            CLIENT_ID = config.get("CLIENT_ID")
+        except json.JSONDecodeError:
+            pass
 
 class RegEmailModal(discord.ui.Modal, title="Đăng Ký Khởi Tạo Email"):
     email_name = discord.ui.TextInput(
@@ -51,14 +59,14 @@ class RegEmailModal(discord.ui.Modal, title="Đăng Ký Khởi Tạo Email"):
 class BotClient(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
+        app_id = int(CLIENT_ID) if CLIENT_ID and str(CLIENT_ID).isdigit() else None
         super().__init__(
             command_prefix="!", 
             intents=intents,
-            application_id=int(CLIENT_ID) if CLIENT_ID and CLIENT_ID.isdigit() else None
+            application_id=app_id
         )
 
     async def setup_hook(self):
-        # Đồng bộ danh sách lệnh slash với Discord API
         await self.tree.sync()
 
     async def on_ready(self):
@@ -72,4 +80,6 @@ async def muagmail(interaction: discord.Interaction):
     await interaction.response.send_modal(modal)
 
 if __name__ == "__main__":
+    if not TOKEN:
+        raise ValueError("Lỗi: Không tìm thấy DISCORD_TOKEN trong Environment Variable hoặc config.json!")
     bot.run(TOKEN)
